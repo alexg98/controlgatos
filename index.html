@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html ng-app="Bookmarks">
+<head>
+    <title>Installation - Angular JS</title>
+    <meta charset="utf-8"> 
+
+    <!-- Latest compiled and minified CSS -->
+    <link rel="stylesheet" href="//maxcdn.bootstrapcdn.com/bootstrap/3.2.0/css/bootstrap.min.css">
+    <link rel="stylesheet" type="text/css" href="./css/style.css">
+</head>
+<body ng-controller="MainController" ng-init="init()">
+
+    <div class="wrapper">
+        
+        <!-- Header -->
+        <header class="header header-fixed navbar container-fluid">
+            <div class="row">
+                <div class="brand col-sm-3">
+                    <a href="#" class="navbar-brand">
+                        <i class="glyphicon glyphicon-heart-empty"></i>
+                        <span class="heading-font">Bookmarks App</span>
+                    </a>
+                </div>
+            </div>
+        </header>
+    
+        <div class="box">
+            <div class="row">
+              
+                <!-- sidebar -->
+                <div class="column col-sm-3" id="sidebar">
+                    <p class="nav-title">
+                      Nodo parent 
+                      <a href="#" class="pull-right"><i class="glyphicon glyphicon-folder-open"></i></a>
+                    </p>
+                    <ul class="nav">
+                    	<a href="#" ng-click="init()"> <i class="glyphicon glyphicon-tags"></i> Iniciar data</a>
+                        <li ng-repeat="category in categories" ng-class="{active: isCurrentCategory(category)}">
+                            <a href="#" ng-click="setCurrentCategory(category)"> <i class="glyphicon glyphicon-tags"></i> {{category}}</a>
+                        </li>
+                    </ul>
+                </div>
+                <!-- /sidebar -->
+              
+                <!-- main -->
+                <div class="column col-sm-9" id="main">
+                    <div class="padding">
+                      <div class="full col-sm-9">
+                        
+                          <!-- content -->
+                          <h2>
+                            <a ng-click="showWindow()" href="#" class="btn btn-primary btn-xs pull-right"><i class="glyphicon glyphicon-usd"></i> Nuevo Gasto</a>
+                          </h2>
+                          
+                          <div id="chart" ng-model="chartData" org-charts="chartData" style="text-align:center"></div>                          
+                          
+                          <div ng-show="( getNodes(selected) | filter:criteria).length" class="table-responsive">
+                             <table class="table table-bordered table-hover">    
+							    <thead>
+							      <tr>
+							      	<th>Fecha</th>
+							        <th>Categoria</th>
+							        <th>Observaion</th>
+							        <th>Total</th>
+							        <th>Gasto</th>							        
+							        <th>Saldo</th>
+							      </tr>
+							      <tr ng-repeat="item in getNodes(selected)" class="success">
+							      	<th>{{ item.fecha | date:'fullDate'}}, {{item.fecha | date:'h:mma'}}</th>
+							        <th>{{ item.categoria }}</th>
+							        <th>{{ item.observacion }}</th>
+							        <th>{{ item.valor | currency}}</th>
+							        <th>{{ item.saldo | currency}}</th>
+							        <th>{{ item.valor - item.saldo | currency}}</th>
+							      </tr>
+							    </thead>							    
+							    <tbody>
+							      <tr ng-repeat="item in getChilds(selected)">
+							        <td>{{ item.fecha | date:'fullDate'}}, {{item.fecha | date:'h:mma'}}</td>
+							        <td>{{ item.categoria }}</td>
+							        <td>{{ item.observacion }}</td>
+							        <td>{{ item.valor | currency}}</td>
+							        <td>{{ item.saldo | currency}}</td>
+							        <td>{{ item.valor - item.saldo | currency}}</td>
+							      </tr>
+							    </tbody>    
+							  </table>
+                          </div>
+                          
+                        <div class="progress" >
+                        	<div class="progress-bar progress-bar-danger" style="width: {{ nodePrimary != null ? (nodePrimary.saldo / nodePrimary.valor * 100 ) : 0 }}%">
+    							<span class="sr-only"></span>
+  							</div>
+  							<div class="progress-bar progress-bar-success" style="width: {{100 - (nodePrimary != null ? (nodePrimary.saldo / nodePrimary.valor * 100 ) : 0)}}%">
+    							<span class="sr-only"></span>
+  							</div>
+  						</div>
+  						
+                      </div><!-- /col-9 -->
+                    </div><!-- /padding -->
+                </div>
+                <!-- /main -->
+              
+            </div>
+        </div>
+    </div>
+
+
+    <!-- Bookmark form -->
+      <div class="modal fade" id="bookmarkModal" tabindex="-1" role="dialog" aria-labelledby="myModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+          <div class="modal-content">
+            <div class="modal-header">
+              <button type="button" class="close" data-dismiss="modal"><span aria-hidden="true">&times;</span><span class="sr-only">Close</span></button>
+              <h4 class="modal-title" id="myModalLabel">Bookmark</h4>
+            </div>
+            <div class="modal-body">
+              
+              <form name="bookmarkForm" id="bookmarkForm" angular-validator >
+                <p>Please enter the title and the url for your bookmark, all fields are required.</p>
+
+                <div class="form-group">
+                  <label for="category">Category</label>
+                  <div class="input-group">
+                    <div class="input-group-addon">
+                      <i class="glyphicon glyphicon-folder-open"></i>
+                    </div>
+                    <select ng-model="bookmark.category" ng-options="obj for obj in categories" id="category" class="form-control input-sm" name="category">
+                    </select>
+                  </div>
+                </div>
+
+                <div class="form-group" ng-class="{'has-error':bookmarkForm.title.$invalid && bookmarkForm.title.$dirty}">
+                  <label for="title">Ingrese el gasto</label>
+                  <div class="input-group">
+                    <div class="input-group-addon">
+                      <i class="glyphicon glyphicon-usd"></i>
+                    </div>
+                    <input ng-model="bookmark.title" ng-required="true" name="title" id="title" class="form-control input-sm" type="number" placeholder="Enter the value"
+                    	 validator = "myValidationFunction(selected,bookmark.title) === true" validate-on="dirty" invalid-message = "myValidationFunction(selected, bookmark.title)">
+                    	<span ng-if="bookmarkForm.title.$invalid && bookmarkForm.title.$dirty" class="help-block"></span>
+                  </div>
+                  
+                </div>
+                
+                <div class="form-group" ng-class="{'has-error':bookmarkForm.fecha.$invalid && bookmarkForm.fecha.$dirty}">
+                  <label for="fecha">Fecha</label>
+                  <div class="input-group">
+                    <div class="input-group-addon">
+                      <i class="glyphicon glyphicon-calendar"></i>
+                    </div>
+                    <input ng-model="bookmark.fecha" ng-required="true" name="fecha" id="fecha" class="form-control input-sm" type="datetime-local" placeholder="yyyy-MM-ddTHH:mm:ss" required >
+                    <span ng-if="bookmarkForm.fecha.$invalid && bookmarkForm.fecha.$dirty" class="glyphicon glyphicon-remove form-control-feedback"></span>
+                  </div>
+                  <span ng-if="bookmarkForm.fecha.$invalid && bookmarkForm.fecha.$dirty" class="help-block">The title is required.</span>
+                  <span ng-if="bookmarkForm.fecha.$error.datetimelocal && bookmarkForm.fecha.$touched" class="help-block">Only numbers.</span>
+                </div>
+
+				<div class="form-group">
+					<label for="fecha">Observaciones</label>
+					<div class="input-group">
+                    <div class="input-group-addon">
+                      <i class="glyphicon glyphicon-comment"></i>
+                    </div>
+                    <input ng-model="bookmark.observacion" name="observacion" id="observacion" type="text" class="form-control input-sm" ></input>
+                    <span ng-if="bookmarkForm.fecha.$invalid && bookmarkForm.fecha.$dirty" class="glyphicon glyphicon-remove form-control-feedback"></span>
+                  </div>
+				</div>
+				
+				<div class="form-group">
+    				<div class="input-group">
+      					<div class="checkbox">
+        				<label>
+        				  <input type="checkbox" ng-model="bookmark.end" name="end" id="end"> <label for="fecha">Finalizar gasto</label>
+        				</label>
+      					</div>
+    				</div>
+  				</div>              
+                
+			<div class="modal-footer">
+              <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
+              <button ng-click="flagSave = true; save(bookmark)" type="submit" class="btn btn-primary">Save changes</button>
+              <button ng-click="flagSave = false; update(bookmark)" type="submit" class="btn btn-primary">update changes</button>               
+            </div>
+            
+              </form>
+
+
+            </div>
+            
+          </div>
+        </div>
+      </div>
+
+
+    <!-- Latest compiled and minified JavaScript -->
+    <script type="text/javascript" src="//code.jquery.com/jquery-2.1.1.min.js"></script>    
+    <script src="//maxcdn.bootstrapcdn.com/bootstrap/3.2.0/js/bootstrap.min.js"></script>
+    <script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.6.1/angular.min.js"></script>
+    
+    <script type="text/javascript" src="//ajax.googleapis.com/ajax/libs/angularjs/1.6.1/angular-resource.min.js"></script>
+    <script src="https://www.google.com/jsapi?autoload={'modules':[{'name':'visualization','version':'1','packages':['corechart','orgchart']}]}"></script>
+    <script type="text/javascript" src="js/app.js"></script>
+    <script type="text/javascript" src="js/angular-validator.js"></script>
+    <script type="text/javascript" src="js/underscore-min.js"></script>
+
+	<!-- Firebase -->
+	<script src="https://www.gstatic.com/firebasejs/3.6.6/firebase.js"></script>
+	<!-- AngularFire -->
+	<script src="https://cdn.firebase.com/libs/angularfire/2.3.0/angularfire.min.js"></script>
+
+    <script>
+  		var config = {
+    			 apiKey: "AIzaSyCEOlHti5DrvA_KI5QxNiTyiTT0Dmt3vuI",
+    			 authDomain: "controlgastos-8fd94.firebaseapp.com",
+    			 databaseURL: "https://controlgastos-8fd94.firebaseio.com",
+    			 			   
+    			 storageBucket: "controlgastos-8fd94.appspot.com",
+    			 messagingSenderId: "761459160281"
+    	 };
+  		firebase.initializeApp(config);
+	</script>
+
+</body>
+</html>
