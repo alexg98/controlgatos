@@ -49,7 +49,8 @@
                         
                           <!-- content -->
                           <h2>
-                            <a ng-click="showWindow()" href="#" class="btn btn-primary btn-xs pull-right"><i class="glyphicon glyphicon-usd"></i> Nuevo Gasto</a>
+                            <a ng-click="showWindow(true)" href="#" class="btn btn-primary btn-xs pull-right"><i class="glyphicon glyphicon-usd"></i> Nuevo Gasto</a>
+                            <a ng-click="showWindow(false)" ng-show="selected != ''" href="#" class="btn btn-primary btn-xs pull-right"><i class="glyphicon glyphicon-usd"></i> Editar Gasto</a>
                           </h2>
                           
                           <div id="chart" ng-model="chartData" org-charts="chartData" style="text-align:center"></div>                          
@@ -64,6 +65,7 @@
 							        <th>Total</th>
 							        <th>Gasto</th>							        
 							        <th>Saldo</th>
+							        <th>Excedente</th>
 							      </tr>
 							      <tr ng-repeat="item in getNodes(selected)" class="success">
 							      	<th>{{ item.fecha | date:'fullDate'}}, {{item.fecha | date:'h:mma'}}</th>
@@ -72,6 +74,7 @@
 							        <th>{{ item.valor | currency}}</th>
 							        <th>{{ item.saldo | currency}}</th>
 							        <th>{{ item.valor - item.saldo | currency}}</th>
+							        <th>{{ obtenerGastoPendientes(item.valor,item.id) | currency}}</th>
 							      </tr>
 							    </thead>							    
 							    <tbody>
@@ -173,14 +176,20 @@
         				<label>
         				  <input type="checkbox" ng-model="bookmark.end" name="end" id="end"> <label for="fecha">Finalizar gasto</label>
         				</label>
+        				<label ng-show="!flagSave">
+        				  <input type="checkbox" ng-model="bookmark.remove" name="remove" id="remove" 
+        				  		validator = "myValidationCheckBoxFunction(selected,bookmark.remove) === true" validate-on="dirty" invalid-message = "myValidationCheckBoxFunction(selected,bookmark.remove)">
+        				  		<span ng-if="bookmarkForm.remove.$invalid" class="help-block"></span> 
+        				  <label for="remove">Remover gastos</label>        				  
+        				</label>
       					</div>
     				</div>
   				</div>              
                 
 			<div class="modal-footer">
               <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
-              <button ng-click="flagSave = true; save(bookmark)" type="submit" class="btn btn-primary">Save changes</button>
-              <button ng-click="flagSave = false; update(bookmark)" type="submit" class="btn btn-primary">update changes</button>               
+              <button ng-show="flagSave" ng-click="save(bookmark)" type="submit" class="btn btn-primary">Save</button>
+              <button ng-show="!flagSave" ng-click="update(bookmark)" type="submit" class="btn btn-primary">Update</button>               
             </div>
             
               </form>

@@ -26,7 +26,7 @@
         var diff = [];
         var debug = 0;
         
-        $scope.categories = ['Creditos','Recreacion','Educacion','Mercados','Transporte','varios','Saldo Inicial'];        
+        $scope.categories = ['Creditos','Recreacion','Educacion','Mercados','Transporte','varios','Saldo Inicial','Servicios publicos','Almuerzos'];        
         //Conexion de firebase
         var refGastos = firebase.database().ref().child("gastos");
         $scope.gastos = $firebaseArray(refGastos);
@@ -35,7 +35,6 @@
         	$scope.gastos.$loaded().then(function() {
         		if($scope.gastos != null && $scope.gastos.length > 0){
         			secunce = parseInt(_.last($scope.gastos).id)+1;
-        			console.log(secunce);
         			$scope.updateDataChar();
         		}
             });          	
@@ -66,13 +65,13 @@
             return $scope.currentCategory === category;
         };
 
-        $scope.showWindow = function(bookmark){
+        $scope.showWindow = function(flagSave){
+        	$scope.flagSave = flagSave;
             $scope.bookmarkForm.$setPristine();
             $scope.bookmarkForm.$setUntouched();
-            
+            var bookmark = null;
             if($scope.selected != ''){
-            	//edicion del bookmark
-            	var obj = _.find($scope.gastos, function(obj){ return obj.id == $scope.selected; }); 
+            	var obj = _.find($scope.gastos, function(obj){ return obj.id == $scope.selected; });
             	bookmark = bookmark || { category:obj.categoria, fecha: obj.fecha, title: obj.valor, end: obj.end, observacion : obj.observacion};            	
             }else{
             	var now = new Date();
@@ -122,37 +121,52 @@
         	return sum;
         };
         
+        $scope.obtenerGastoPendientes = function(valor,nodoParent){ 
+        	if($scope.tieneHijos(nodoParent)){
+        		return valor - _.reduce( $scope.getChilds(nodoParent) , function(memo, num){ return memo + num.valor; }, 0);
+        	}else {
+        		return 0;
+        	}        	
+        };
+        
         $scope.tieneHijos = function(nodoParent){  //console.log("tieneHijos.("+nodoParent+")" + debug++);
         	var result = _.filter($scope.gastos, function(obj){ return obj.parent == nodoParent; });
         	return result != null && _.size(result) > 0 ;
         };        
         
+        $scope.myValidationCheckBoxFunction = function(nodoParent,remover){ 
+        	if(remover === true && _.size( $scope.getChilds(nodoParent) ) > 0 ){
+        		return "No es posible remover, tiene hijos asigando";
+        	}
+        	return true;
+        };
+        
         $scope.myValidationFunction = function(nodoParent,valor){  //console.log("myValidationFunction.("+nodoParent+","+valor+")" + debug++);   
-        	console.log($scope.flagSave);
-        	var obj = _.find($scope.gastos, function(obj){ return obj.id == nodoParent; });
-        	var sum = _.reduce( $scope.getChilds(nodoParent) , function(memo, num){ return memo + num.valor; }, 0);
         	
-        	if($scope.flagSave && obj != null && (sum + valor) > obj.valor){
-        		var error = "El valor ingresado supera el valor del nodo, valor ingresado " + valor + " valor nodo " + (sum + valor);
-        		console.log(error);
-        		return error;
-        	}else if ($scope.flagSave && obj != null && obj.end ){
-        		var error = "Gasto cerrado";
-        		console.log(error);
-        		return error;
-        	}
+        	var objCurrent = _.find($scope.gastos, function(obj){ return obj.id == nodoParent; });
+        	var sumHijos = _.reduce( $scope.getChilds(nodoParent) , function(memo, num){ return memo + num.valor; }, 0);
         	
-        	if(!$scope.flagSave){
-        		var sumaHermanos = _.reduce( $scope.getChilds(obj.parent) , function(memo, num){ return memo + num.valor; }, 0);
-        		console.log($scope.getChilds(obj.parent));
-        		var objPadre = _.find($scope.gastos, function(objPadre){ return objPadre.id == obj.parent; });
-        		if(objPadre != null && (sumaHermanos - obj.valor + valor ) > objPadre.valor){
-        			var error = "La suma de los hermanos incluyendome supera el valor del padre hermano : " + (sumaHermanos - obj.valor + valor) +"padre" + objPadre.valor;
-            		console.log(error);
-            		return error;
+        	var msgError = null;        	
+        	
+        	if( $scope.flagSave ){
+        		if(objCurrent != null && (sumHijos + valor) > objCurrent.valor){
+        			msgError = "El valor ingresado supera el valor del nodo, valor disponible : " + $filter('currency')(objCurrent.valor - sumHijos,'$',0);
+        		}else if( objCurrent != null && objCurrent.end ){
+        			msgError = "El gasto esta cerrado";
         		}
+        	}else {
+        		var objParent = null;
+        		if(objCurrent != null){
+            		var sumaHermanos = _.reduce( $scope.getChilds(objCurrent.parent) , function(memo, num){ return memo + num.valor; }, 0);
+            		objParent = _.find($scope.gastos, function(obj){ return obj.id == objCurrent.parent; });
+            		if(objParent != null && (sumaHermanos - objCurrent.valor + valor ) > objParent.valor){
+            			msgError = "La suma de los hermanos incluyendome supera el valor del padre hermano, saldo disponible : " + (objParent.valor - sumaHermanos - objCurrent.valor);
+            		}else if(sumHijos > valor){
+            			msgError = "No puede ingresar un valor menor a las suma de los gastos hijos, gastos hijos " + sumHijos;
+            		}
+            	}
         	}
-        	return true;        	        	
+        	return msgError != null ? msgError : true;        	       	        	
         };
         
         $scope.getChilds = function(nodoParent){  //console.log("getChilds.("+nodoParent+")" + debug++);   	    		
@@ -167,17 +181,24 @@
             if($scope.bookmarkForm.$valid){
             	if($scope.selected != ''){           		
             		var gto = _.find($scope.gastos, function(obj){ return obj.id == $scope.selected; });
-            		if(bookmark.end === true && $scope.tieneHijos(gto.id)){                				
-        				$scope.eliminarHijos(gto.id);
-        			}        			
-            		gto.categoria = bookmark.category;
-            		gto.valor = bookmark.title;
-            		gto.end = bookmark.end; 
-            		gto.fecha = bookmark.fecha.toJSON();  
-            		gto.observacion = bookmark.observacion != null ? bookmark.observacion : null;
-            		$scope.gastos.$save(gto).then(function() {
-        	        	$scope.init();
-        	        });
+            		
+            		if(bookmark.remove){
+            			$scope.gastos.$remove(gto).then(function() {
+            				$scope.init();
+            			});
+            		}else{
+            			if(bookmark.end === true && $scope.tieneHijos(gto.id)){                				
+            				$scope.eliminarHijos(gto.id);
+            			}        			
+            			gto.categoria = bookmark.category;
+            			gto.valor = bookmark.title;
+            			gto.end = bookmark.end; 
+            			gto.fecha = bookmark.fecha.toJSON();  
+            			gto.observacion = bookmark.observacion != null ? bookmark.observacion : null;
+            			$scope.gastos.$save(gto).then(function() {
+            				$scope.init();
+            			});
+            		}
                     $scope.updateDataChar();
             	}
                 $('#bookmarkModal').modal('hide');
@@ -204,7 +225,6 @@
         $scope.save = function(bookmark){  //console.log("save.("+bookmark+")" + debug++);
             if($scope.bookmarkForm.$valid){            	
                 addGasto(bookmark);
-                console.log($scope.gastos);                                  
                 $('#bookmarkModal').modal('hide');
             }
         };
@@ -241,7 +261,7 @@
                         	  if (selectedItem) {
                         	      var selectedValue = data.getValue(selectedItem.row, 0);            	      
                         	      scope.$apply(function(){                        	    	  
-                        	    	  scope.selected = selectedValue; console.log(selectedValue);
+                        	    	  scope.selected = selectedValue;
                         	      });
                         	  }
                         });
